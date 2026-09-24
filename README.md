@@ -4,11 +4,11 @@
 
 This repository contains files and assignments related to lab and discussion sessions for EDS223, part of the UCSB MEDS 2027 graduate program.
 
-The below table maps out the layout of this repository:
+The below directory tree maps out the layout of this repository:
 
-| Directory/File Name | Description |
-| ------------------- | ------------------- |
-| TBD | ... |
+├── Discussions     # Directory for weekly Discussion session files
+├── Labs            # Directory for weekly Lab session files
+└── README.md       # README.md for the root directory
 
 ## Data
 
