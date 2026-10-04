@@ -1,0 +1,122 @@
+---
+title: Week 0: Data Wrangling Refresher
+format: html
+---
+
+## 1. Get Started
+
+```{r}
+# Check for package installation
+packages <- c("here", "janitor", "tidyverse", "sf", "terra", "tmap", "spData", "spDataLarge", "geodata", "kableExtra", "viridisLite")
+installed_packages <- packages %in% rownames(installed.packages())
+
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+```
+```{r}
+# Load packages
+library(here)
+library(janitor)
+library(tidyverse)
+library(sf)
+library(kableExtra)
+```
+
+## 2. Load Data
+
+```{r}
+# Load in gdw.csv data file
+gdw_df <- read_csv(here("Discussions/data/Archive", "gdw.csv")) |>
+  clean_names() # Convert column names to snake case
+```
+
+## 3. Data Exploration
+
+```{r}
+# Display head and tail of dataset as nice tables
+head(gdw_df, n = 10) |> kable() |> kable_styling()
+tail(gdw_df, n = 10) |> kable() |> kable_styling()
+```
+
+```{r}
+# Display dataset dimensions, rows, col
+dim(gdw_df)
+nrow(gdw_df)
+ncol(gdw_df)
+```
+
+```{r}
+# Display column names of gdw_df
+names(gdw_df)
+```
+
+## 4. Index, Summarize, Subset Date
+
+```{r}
+# Create df and vector of country names
+country_df <- gdw_df["country"]
+country_vec <- gdw_df[["country"]]
+```
+
+```{r}
+# Determine number of dams per dam type
+gdw_df |> group_by(dam_type) |>
+  summarise(type_count = n()) |> 
+  ungroup()
+```
+
+```{r}
+# Create subset of gdw_df with 
+sub_dam <- gdw_df |> 
+  filter(dam_type == "Dam")
+sub_dam
+```
+
+```{r}
+# Re-order gdw_df by dam installation year, ascending 
+gdw_df <- gdw_df |> 
+  arrange(year_dam)
+gdw_df
+```
+
+## 5. Data Visualization
+
+```{r}
+# Plotting
+gdw_df |>
+  group_by(country) |>
+  summarize(mean_dam_hgt_m = mean(dam_hgt_m, na.rm = TRUE)) |>
+  ungroup() |> 
+  ggplot(aes(x = country, y = mean_dam_hgt_m)) +
+    geom_bar(stat = "identity") +
+    labs(x = "Country",
+         y = "Average height of dam/barrier in meters") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
+```{r}
+ggplot(data = gdw_df,
+      aes(x = cap_mcm, y = dam_hgt_m)) +
+  geom_point() +
+  labs(x = "Storage capacity of reservoir in million cubic meters",
+       y = "Height of dam/barrier in meters") +
+  theme_minimal()
+```
+
+## 6. Looking Ahead
+
+```{r}
+head(gdw_df$shape, n = 3)
+```
+```{r}
+class(gdw_df$shape)
+```
+```{r}
+gdw_st <- st_read(here("data", "gdw.gdb")) |>
+  clean_names() # Convert variable names to lower snake case
+```
+```{r}
+gdw_sf <- read_sf(here("data", "gdw.gdb")) |>
+  clean_names() # Convert variable names to lower snake case
+```
