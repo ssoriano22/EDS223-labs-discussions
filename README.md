@@ -15,7 +15,9 @@ The below directory tree maps out the layout of this repository:
 ## Data
 
 Week 0 Discussion: [https://drive.google.com/file/d/1a8t6JH2jvreKE3qXwfis1nlbxXMd1Srd/view](https://drive.google.com/file/d/1a8t6JH2jvreKE3qXwfis1nlbxXMd1Srd/view)
+
 Week 1 Lab: [https://github.com/EDS-223-Geospatial/Weekly-Labs/tree/main/week1](https://github.com/EDS-223-Geospatial/Weekly-Labs/tree/main/week1)
+
 Week 1 Discussion: [https://drive.google.com/drive/folders/1zoHTlNZZN7qrGIA7kIUtFZvDC6FJ8ggb](https://drive.google.com/drive/folders/1zoHTlNZZN7qrGIA7kIUtFZvDC6FJ8ggb)
 
 ## Authors
