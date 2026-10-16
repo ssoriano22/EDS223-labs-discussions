@@ -1,5 +1,5 @@
 ---
-title: "Week 3: Discussion Section
+title: "Week 3: Discussion Section"
 subtitle: "Practice vector operations"
 ---
 
