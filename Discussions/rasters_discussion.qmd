@@ -1,0 +1,313 @@
+---
+title: "Week 4: Discussion Section (terra and stars)"
+subtitle: "Practice raster manipulations"
+date: "23 October 2026"
+---
+
+## Setup
+
+```{r}
+library(tidyverse)
+library(spDataLarge)
+library(sf)
+library(stars)
+library(terra)
+```
+
+## Part 1: `terra`
+
+1. Explore elevation at Mt. Mongón, Perú
+    - Make a boxplot and histogram of elevation at Mt. Mongón, Perú
+    - Reclassify dem and compute the mean for the three classes:
+        - Low, where elevation is less than 300
+        - Medium
+        - High, where elevation is greater than 500
+2. Explore NDVI and NDWI at Zion National Park
+    - Calculate the Normalized Difference Vegetation Index (NDVI) at Zion National Park
+    - Calculate the Normalized Difference Water Index (NDWI) at Zion National Park
+    - Find a correlation between NDVI and NDWI at Zion National Park
+3. Change resolution of elevation at Zion National Park
+    - Use all the methods available to change the resolution of elevation at Zion National Park to 0.01 by 0.01 degrees
+        - Note: The srtm raster has a resolution of 0.00083 by 0.00083 degrees
+
+### Load the data
+
+```{r}
+dem <- terra::rast(system.file("raster/dem.tif", package = "spDataLarge"))
+landsat <- terra::rast(system.file("raster/landsat.tif", package = "spDataLarge"))
+srtm <- terra::rast(system.file("raster/srtm.tif", package = "spDataLarge"))
+```
+
+### Explore elevation at Mt. Mongón, Perú
+
+```{r}
+# Use terra:: so R doesn't fall back to base hist()/boxplot(), which can't read a SpatRaster
+terra::hist(dem,
+            main = "Digital Elevation Model Distribution",
+            xlab = "Value")
+terra::boxplot(dem,
+            main = "Digital Elevation Model Distribution",
+            xlab = "Value")
+```
+
+```{r}
+# Define a reclassification matrix - 300-500 contains most of our values
+rcl <- matrix(c(-Inf, 300, 0, # values -Inf to 300 = 0
+                300, 500, 1,  # values 300 to 500 = 1
+                500, Inf, 2), # values 500 to Inf = 2
+              ncol = 3, byrow = TRUE)
+
+# Apply the matrix to reclassify the raster, making all cells 0 or 1 or 2
+dem_rcl <- terra::classify(dem, rcl = rcl)
+
+# Assign labels to the numerical categories
+
+# Old version: works with newer terra, but older versions (e.g., 1.7) error with
+# "[set.cats] the first column of 'value' must be numeric" because they don't accept a tibble
+# levels(dem_rcl) <- tibble::tibble(id = 0:2,
+#                                   cats = c("low", "medium", "high"))
+
+# New version: a plain data.frame works with both older and newer terra
+levels(dem_rcl) <- data.frame(id = 0:2,
+                              cats = c("low", "medium", "high"))
+
+# Calculate mean elevation for each category using original DEM values
+elevation_mean <- terra::zonal(dem, dem_rcl, fun = "mean")
+elevation_mean
+```
+
+###  Explore NDVI and NDWI at Zion National Park
+
+```{r}
+# Set scale factor and offset
+scale_factor <- 0.0000275
+offset <- 0.2
+
+# Define scale_function
+scale_function <- function(x) {
+  x * scale_factor + offset
+}
+
+# Apply scale to landsat
+landsat_scaled <- terra::app(landsat, fun = scale_function)
+```
+
+```{r}
+# Define ndwi calculating function - water features
+ndwi_fun <- function(green, nir){
+    (green - nir)/(green + nir)
+}
+
+# Define ndvi calculating function - vegetation density
+ndvi_fun <- function(nir, red){
+  (nir - red)/(nir + red)
+}
+```
+
+```{r}
+# Apply ndwi fun to green and nir layers
+ndwi_rast <- terra::lapp(landsat_scaled[[c(2, 4)]],
+                         fun = ndwi_fun)
+
+# Apply ndvi fun to nir and red layers
+ndvi_rast <- terra::lapp(landsat_scaled[[c(4, 3)]],
+                         fun = ndvi_fun)
+```
+
+```{r}
+# Plot ndwi raster
+plot(ndwi_rast,
+     main = "Zion National Park NDWI")
+```
+
+```{r}
+# Stack both rasters 
+combine <- c(ndvi_rast, ndwi_rast)
+
+# Plot the stacked rasters
+plot(combine, main = c("NDVI", "NDWI"))
+```
+
+```{r}
+# Calculate correlation between raster layers
+terra::layerCor(combine, fun = cor)
+```
+
+### Change resolution of elevation at Zion National Park
+
+```{r}
+# Plot srtm - Shuttle Radar Topography Mission land elevation data
+plot(srtm)
+```
+
+```{r}
+# Create empty template raster
+rast_template <- terra::rast(terra::ext(srtm), res = 0.01) # Create empty template
+```
+
+```{r}
+# Resampling several different ways to change resolution
+srtm_resampl1 <- terra::resample(srtm, y = rast_template, method = "bilinear")
+srtm_resampl2 <- terra::resample(srtm, y = rast_template, method = "near")
+srtm_resampl3 <- terra::resample(srtm, y = rast_template, method = "cubic")
+srtm_resampl4 <- terra::resample(srtm, y = rast_template, method = "cubicspline")
+srtm_resampl5 <- terra::resample(srtm, y = rast_template, method = "lanczos")
+```
+
+```{r}
+# Create vector of resamples
+srtm_resampl_all <- c(srtm_resampl1, srtm_resampl2, srtm_resampl3, srtm_resampl4, srtm_resampl5)
+# Add plot labels
+labs <- c("Bilinear", "Near", "Cubic", "Cubic Spline", "Lanczos")
+
+# Plot resampling
+plot(srtm_resampl_all, main = labs)
+```
+
+## Part 2: `sf` + `stars`
+
+### Load the data
+
+```{r}
+dem <- stars::read_stars(system.file("raster/dem.tif", package = "spDataLarge"))
+landsat <- stars::read_stars(system.file("raster/landsat.tif", package = "spDataLarge"))
+srtm <- stars::read_stars(system.file("raster/srtm.tif", package = "spDataLarge"))
+```
+
+```{r}
+# Check class is stars
+class(srtm)
+# A stars object is a list of arrays (attributes) plus a set of dimensions
+# 2-D = terra, N-D = stars
+dem
+landsat # Note the third dimension, "band"
+```
+
+### Explore elevation at Mt. Mongón, Perú
+
+```{r}
+# Extract the array of values from the first (and only) attribute
+dem_values <- as.vector(dem[[1]])
+
+hist(dem_values,
+     main = "Digital Elevation Model Distribution",
+     xlab = "Value")
+
+boxplot(dem_values,
+        main = "Digital Elevation Model Distribution",
+        ylab = "Value")
+```
+
+```{r}
+# Reclassify by cutting values into intervals, returning a factor raster
+dem_rcl <- cut(dem,
+               breaks = c(-Inf, 300, 500, Inf), # -Inf to 300, 300 to 500, 500 to Inf
+               labels = c("low", "medium", "high"))
+
+plot(dem_rcl, main = "Reclassified elevation")
+```
+
+```{r}
+# Calculate mean elevation for each category using original DEM values
+elevation_mean <- tibble(elevation = as.vector(dem[[1]]),
+                         cats = factor(as.vector(dem_rcl[[1]]), levels = levels(dem_rcl[[1]]))) %>%
+  group_by(cats) %>%
+  summarise(mean_elevation = mean(elevation, na.rm = TRUE))
+elevation_mean
+```
+
+```{r}
+# Polygonize the reclassified raster, merging cells of the same class
+dem_polys <- sf::st_as_sf(dem_rcl, merge = TRUE) %>%
+  group_by(dem.tif) %>%
+  summarise() # Dissolve into one (multi)polygon per class
+
+# Compute the mean of DEM values falling inside each polygon
+aggregate(dem, by = dem_polys, FUN = mean) %>%
+  sf::st_as_sf() %>%
+  mutate(cats = dem_polys$dem.tif)
+```
+
+### Explore NDVI and NDWI at Zion National Park
+
+```{r}
+scale_factor <- 0.0000275
+offset <- 0.2
+
+# Arithmetic on a stars object is applied to every grid cell
+landsat_scaled <- landsat * scale_factor + offset
+```
+
+```{r}
+ndwi_fun <- function(green, nir){
+    (green - nir)/(green + nir)
+}
+
+ndvi_fun <- function(nir, red){
+  (nir - red)/(nir + red)
+}
+```
+
+```{r}
+# Split the "band" dimension into attributes (X1 = blue, X2 = green, X3 = red, X4 = NIR)
+landsat_bands <- split(landsat_scaled, "band")
+landsat_bands
+```
+
+```{r}
+ndwi_rast <- landsat_bands %>%
+  transmute(ndwi = ndwi_fun(green = X2, nir = X4))
+
+ndvi_rast <- landsat_bands %>%
+  transmute(ndvi = ndvi_fun(nir = X4, red = X3))
+```
+
+```{r}
+plot(ndwi_rast,
+     main = "Zion National Park NDWI")
+```
+
+```{r}
+plot(ndvi_rast,
+     main = "Zion National Park NDVI")
+```
+
+```{r}
+combine <- c(ndvi_rast, ndwi_rast) # Combine as two attributes
+
+plot(merge(combine)) # Merge attributes into a dimension to plot side by side
+```
+
+```{r}
+# Calculate correlation between the two attributes
+cor(as.vector(combine$ndvi), as.vector(combine$ndwi), use = "complete.obs")
+```
+
+### Change resolution of elevation at Zion National Park
+
+```{r}
+plot(srtm)
+```
+
+
+```{r}
+# Create empty template from the bounding box of srtm
+rast_template <- stars::st_as_stars(sf::st_bbox(srtm), dx = 0.01, dy = 0.01)
+```
+
+
+```{r}
+# use_gdal = TRUE is needed for methods other than nearest neighbor
+srtm_resampl1 <- stars::st_warp(srtm, dest = rast_template, method = "bilinear", use_gdal = TRUE, no_data_value = -9999)
+srtm_resampl2 <- stars::st_warp(srtm, dest = rast_template, method = "near", use_gdal = TRUE, no_data_value = -9999)
+srtm_resampl3 <- stars::st_warp(srtm, dest = rast_template, method = "cubic", use_gdal = TRUE, no_data_value = -9999)
+srtm_resampl4 <- stars::st_warp(srtm, dest = rast_template, method = "cubicspline", use_gdal = TRUE, no_data_value = -9999)
+srtm_resampl5 <- stars::st_warp(srtm, dest = rast_template, method = "lanczos", use_gdal = TRUE, no_data_value = -9999)
+```
+
+```{r}
+srtm_resampl_all <- c(srtm_resampl1, srtm_resampl2, srtm_resampl3, srtm_resampl4, srtm_resampl5)
+names(srtm_resampl_all) <- c("Bilinear", "Near", "Cubic", "Cubic Spline", "Lanczos")
+
+plot(merge(srtm_resampl_all))
+```
