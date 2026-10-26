@@ -1,6 +1,7 @@
 # Ignore the 'data' directories
 Discussions/data/
 Labs/week1/data/
+Labs/week5/data/
 
 # History files
 .Rhistory
