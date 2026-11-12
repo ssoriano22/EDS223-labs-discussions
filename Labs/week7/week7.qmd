@@ -16,7 +16,7 @@ editor_options:
 #| echo: false
 #| out-width: "75%"
 #| fig-align: "center"
-knitr::include_graphics("images/Landsat8-First-Light.png")
+#knitr::include_graphics("images/Landsat8-First-Light.png")
 ```
 
 ::: {.gray-text .center-text}
@@ -264,6 +264,35 @@ tm_shape(landsat_scaled) +
   tm_scalebar(position = c("left", "bottom"))
 ```
 
+Our data is left-skewed - many ocean pixels equals lower reflectance for whole image. Let's stretch our true color image:
+
+```{r}
+# Bands assigned by layer #
+# Linear "lin" stretch
+plotRGB(landsat_scaled, r = 3, g = 2, b = 1, stretch = "lin")
+```
+
+Gamma correction applies a power transform to each pixel value. Because surface reflectance values are all between 0 and 1, raising them to a power less than 1 pushes mid-range values upward without clipping, brightening the midtones while preserving relative differences across the scene. display_value = reflectance^𝛾
+
+A gamma of 0.4–0.5 works well for Landsat over most landscapes.
+
+```{r}
+# Gamma transformation
+landsat_gamma <- landsat_scaled[[c("red", "green", "blue")]]^0.4
+landsat_gamma
+```
+
+```{r}
+# Plot gamma corrected version
+names(landsat_gamma) <- c("red", "green", "blue")
+
+tm_shape(landsat_gamma) +
+  tm_rgb(col = tm_vars(c("red", "green", "blue"), multivariate = TRUE),
+         col.scale = tm_scale_rgb(max_color_value = 1)) +
+  tm_title("True color (gamma = 0.4)") +
+  tm_scalebar(position = c("left", "bottom"))
+```
+
 ## 6. False color imagery
 
 A **false color composite** assigns satellite bands beyond the visible spectrum (or in a non-standard order) to the display channels, letting us highlight features that are difficult to distinguish in true color.
@@ -331,6 +360,9 @@ tmap_arrange(map_true, map_nir, map_swir, nrow = 1)
 # Interpret the composites
 
 1. What land cover types are clearest in the true color image?
+  - ocean, cloud, land
 2. Where do you see evidence of vegetation in the NIR false color image? Does its brightness match the Band 5 (NIR) grayscale image?
+  - The upper right and middle left. Yes the NIR false color and NIR greyscale agree.
 3. How does the SWIR composite help distinguish open water from other dark features such as shadows or urban areas?
+  - water is really dark compared to any land
 :::
